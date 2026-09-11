@@ -58,6 +58,11 @@ async function runMigration() {
 
     let sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
 
+    // Adapt database name dynamically if environment uses a different DB name (e.g. crib_society_db on local)
+    if (targetDb !== 'railway') {
+      sqlContent = sqlContent.replace(/`railway`/g, `\`${targetDb}\``);
+    }
+
     // 3. Prepare clean slate drop statements to prevent "Table already exists" on re-runs
     const dropHeader = `
       SET FOREIGN_KEY_CHECKS = 0;
