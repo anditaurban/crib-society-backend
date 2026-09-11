@@ -10,13 +10,13 @@ Panduan langkah demi langkah untuk melakukan deployment **Crib Society Coffee** 
 
 ```text
 [ Railway Project: crib-society ]
-  ├── Service 1: MySQL Database (Private Network)
-  │     ├── Host: mysql.railway.internal
-  │     └── Port: 3306
+  ├── Service 1: MySQL Database
+  │     ├── Private Network: mysql.railway.internal:3306 (untuk komunikasi internal dengan API)
+  │     └── Public Network / TCP Proxy: *.proxy.rlwy.net:PORT (untuk import data langsung dari lokal)
   │
   └── Service 2: Express REST API (Web Service)
-        ├── Mengambil env otomatis dari MySQL
-        └── Public Domain: https://crib-society-api.up.railway.app
+        ├── Mengambil env otomatis dari MySQL via Private Network
+        └── Public Domain: https://crib-society-backend-production.up.railway.app
 ```
 
 ---
@@ -36,7 +36,7 @@ git push -u origin main
 
 ---
 
-## Langkah 2: Buat Project Baru di Railway
+## Langkah 2: Buat Project & MySQL Database di Railway
 
 1. Buka dashboard [Railway.com](https://railway.com) dan login.
 2. Klik tombol **New Project**.
@@ -46,73 +46,110 @@ git push -u origin main
 
 ---
 
-## Langkah 3: Tambahkan Service API dari GitHub
+## Langkah 3: Import Database Menggunakan Public Network MySQL (Sangat Cepat & Praktis)
 
-1. Di dalam project yang sama di Railway, klik tombol **+ Create** (atau **New Service**).
-2. Pilih **GitHub Repo**.
-3. Pilih repository `crib-society-backend` yang telah Anda push di Langkah 1.
-4. Railway akan mendeteksi project Node.js secara otomatis.
+Mengaktifkan Public Network pada MySQL memungkinkan Anda mengimpor database langsung dari komputer lokal dalam hitungan detik tanpa khawatir Service API mengalami crash.
 
----
-
-## Langkah 4: Hubungkan Environment Variables
-
-Backend Crib Society sudah dirancang untuk **otomatis mengenali variabel bawaan Railway**.
-
-Buka **Service API** $\rightarrow$ tab **Variables**:
-
-### Cara Termudah (Reference Variable):
-Tambahkan variabel berikut:
-| Variable Name | Value (Ketik atau pilih dropdown Railway) | Keterangan |
-| :--- | :--- | :--- |
-| `MYSQL_URL` | `${{MySQL.MYSQL_URL}}` | Otomatis terisi connection string MySQL |
-| `NODE_ENV` | `production` | Mode produksi |
-| `JWT_SECRET` | `crib_society_super_secret_jwt_key_2026_gen_z` | Kunci rahasia JWT Anda |
-| `PORT` | *(Dibiarkan kosong / otomatis diatur Railway)* | Railway inject port otomatis |
-
-*(Alternatif jika tidak memakai `MYSQL_URL`, Railway otomatis menyediakan `${{MySQL.MYSQLHOST}}`, `${{MySQL.MYSQLUSER}}`, `${{MySQL.MYSQLPASSWORD}}`, `${{MySQL.MYSQLPORT}}`, dan `${{MySQL.MYSQLDATABASE}}` yang sudah didukung secara native oleh kode `src/config/db.js`).*
-
----
-
-## Langkah 5: Migrasi Database & Seeding di Railway
-
-Ada 2 cara mudah untuk menjalankan migrasi dan seeding (`crib_society_db.sql`) ke MySQL Railway:
-
-### Opsi A: Otomatis saat Deploy (Direkomendasikan)
-1. Buka **Service API** $\rightarrow$ tab **Settings**.
-2. Gulir ke bagian **Deploy** $\rightarrow$ **Custom Start Command**.
-3. Masukkan perintah:
-   ```bash
-   npm run start:migrate
+### 3.1 Aktifkan Public Network pada Service MySQL
+1. Di dashboard Railway, klik **Service MySQL**.
+2. Masuk ke tab **Settings**.
+3. Gulir ke bawah ke bagian **Networking** $\rightarrow$ **Public Networking**.
+4. Klik tombol **Add Public TCP Proxy** (atau **Generate Domain**).
+5. Masuk ke tab **Connect**, cari bagian **Public Networking**.
+6. Salin URL koneksi publik yang disediakan, formatnya seperti:
+   ```text
+   mysql://root:PASSWORD@switchback.proxy.rlwy.net:59233/railway
    ```
-4. Setiap kali deploy, Railway akan menjalankan script migrasi & seed terlebih dahulu, kemudian menyalakan server. Setelah database sudah terisi di deploy pertama, Anda bisa mengembalikannya ke `npm start`.
 
-### Opsi B: Menggunakan Railway CLI
-Jalankan dari terminal lokal Anda:
+---
+
+### 3.2 Cara Import `crib_society_db.sql` ke Railway
+
+Pilih salah satu metode berikut yang paling Anda sukai:
+
+#### Opsi A: Menggunakan Script Bawaan Project (`npm run migrate`) — Paling Direkomendasikan
+Script `src/database/migrate.js` telah dirancang untuk otomatis membaca `MYSQL_URL`. Anda cukup menjalankan satu baris perintah berikut di terminal komputer Anda:
+
+**Windows PowerShell:**
+```powershell
+$env:MYSQL_URL="mysql://root:PASSWORD@PROXY_HOST:PORT/railway"; npm run migrate
+```
+*(Ganti URL di atas dengan Public URL MySQL Railway Anda).*
+
+**Linux / macOS / Git Bash:**
 ```bash
-npm install -g @railway/cli
-railway login
-railway link
-railway run npm run migrate
+MYSQL_URL="mysql://root:PASSWORD@PROXY_HOST:PORT/railway" npm run migrate
+```
+
+Output terminal akan langsung menampilkan:
+```text
+🔄 Starting database migration and seeding for Crib Society...
+✅ Connected to MySQL server.
+📦 Ensuring database "railway" exists and is active...
+📄 Executing crib_society_db.sql...
+🎉 Database migration & seed completed successfully!
+Database "railway" is fully populated and ready for production.
+```
+
+#### Opsi B: Menggunakan Database GUI (TablePlus / DBeaver / HeidiSQL)
+1. Buka **TablePlus** atau **DBeaver**.
+2. Buat koneksi baru dengan memilih **Import from URL** / paste Public Connection URL Railway.
+3. Buka Query Editor $\rightarrow$ Buka berkas `database/crib_society_db.sql` $\rightarrow$ Klik **Run All**.
+
+#### Opsi C: Menggunakan MySQL CLI Native
+```bash
+mysql -h switchback.proxy.rlwy.net -P 59233 -u root -p railway < database/crib_society_db.sql
 ```
 
 ---
 
-## Langkah 6: Generate Public Domain
+## Langkah 4: Tambahkan Service API dari GitHub
+
+1. Di dalam project Railway yang sama, klik tombol **+ Create** (atau **New Service**).
+2. Pilih **GitHub Repo**.
+3. Pilih repository `crib-society-backend` Anda.
+4. Railway akan mendeteksi project Node.js secara otomatis.
+
+---
+
+## Langkah 5: Hubungkan Environment Variables ke Service API
+
+Buka **Service API** $\rightarrow$ tab **Variables**, lalu tambahkan:
+
+| Variable Name | Value (Reference / Nilai) | Keterangan |
+| :--- | :--- | :--- |
+| `MYSQL_URL` | `${{MySQL.MYSQL_URL}}` | Menggunakan koneksi internal private network Railway |
+| `NODE_ENV` | `production` | Mode produksi |
+| `JWT_SECRET` | `crib_society_super_secret_jwt_key_2026_gen_z` | Kunci rahasia JWT Anda |
+| `PORT` | *(Dibiarkan kosong)* | Railway otomatis mengatur port |
+
+> **Catatan:**  
+> Untuk komunikasi antara Service API ke MySQL di Railway, gunakan reference `${{MySQL.MYSQL_URL}}` (Private Network) agar latensi nol dan kuota data gratis di dalam jaringan Railway.
+
+---
+
+## Langkah 6: Atur Start Command & Generate Domain
+
+Karena database sudah selesai diimpor pada Langkah 3, Service API hanya perlu menjalankan server secara normal:
 
 1. Buka **Service API** $\rightarrow$ tab **Settings**.
-2. Gulir ke bagian **Networking** $\rightarrow$ **Public Networking**.
-3. Klik **Generate Domain**.
-4. Anda akan mendapatkan URL publik, contohnya:
-   `https://crib-society-backend-production.up.railway.app`
+2. Pastikan **Custom Start Command** bernilai standar:
+   ```bash
+   npm start
+   ```
+3. Gulir ke bagian **Networking** $\rightarrow$ **Public Networking**, klik **Generate Domain**.
+4. Anda akan mendapatkan URL publik API, contohnya:
+   ```text
+   https://crib-society-backend-production.up.railway.app
+   ```
 
 ---
 
 ## Langkah 7: Verifikasi Endpoint
 
 Coba buka di browser atau Postman:
-- **Health Check:** `https://DOMAIN-ANDA.up.railway.app/api/health`
-- **Public Menu:** `https://DOMAIN-ANDA.up.railway.app/api/products`
-- **Login Owner:** `https://DOMAIN-ANDA.up.railway.app/api/auth/login` (email: `owner@cribsociety.com`, password: `password123`)
+- **Health Check:** `https://crib-society-backend-production.up.railway.app/api/health`
+- **Public Menu:** `https://crib-society-backend-production.up.railway.app/api/products`
+- **Login Owner:** `POST /api/auth/login` (email: `owner@cribsociety.com`, password: `password123`)
 
-Update variabel `base_url` pada [collection.json](file:///c:/laragon/www/crib_society_coffee/backend/collection.json) di Postman menjadi domain Railway Anda untuk mulai pengujian penuh.
+Koleksi Postman pada berkas [collection.json](file:///c:/laragon/www/crib_society_coffee/backend/collection.json) sudah otomatis menggunakan URL production ini.
