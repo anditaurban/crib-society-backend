@@ -1,7 +1,6 @@
 # Crib Society Coffee — API Integration Documentation
 
-> **Base URL (Production):** `https://crib-society-backend-production.up.railway.app/api`  
-> **Base URL (Local):** `http://localhost:5000/api`  
+> **Base URL:** `https://crib-society-backend-production.up.railway.app/api`  
 > **Content-Type:** `application/json`  
 > **Target Audience:** Frontend Developers (Web, POS, Owner Dashboard) & Integration Testing  
 > **Related Documents:** [API-SPEC.md](file:///c:/laragon/www/crib_society_coffee/backend/docs/API-SPEC.md), [BUSINESS-RULES.md](file:///c:/laragon/www/crib_society_coffee/backend/docs/BUSINESS-RULES.md), [DATABASE-SPEC.md](file:///c:/laragon/www/crib_society_coffee/backend/docs/DATABASE-SPEC.md)
