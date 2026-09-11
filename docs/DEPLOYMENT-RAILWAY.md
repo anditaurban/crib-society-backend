@@ -76,7 +76,7 @@ Tambahkan variabel berikut:
 
 ## Langkah 5: Migrasi Database & Seeding di Railway
 
-Ada 2 cara mudah untuk menjalankan migrasi dan seeding (`database.sql`) ke MySQL Railway:
+Ada 2 cara mudah untuk menjalankan migrasi dan seeding (`crib_society_db.sql`) ke MySQL Railway:
 
 ### Opsi A: Otomatis saat Deploy (Direkomendasikan)
 1. Buka **Service API** $\rightarrow$ tab **Settings**.

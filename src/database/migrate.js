@@ -41,7 +41,10 @@ async function runMigration() {
     connection = await mysql.createConnection(dbConfig);
     console.log(`✅ Connected to MySQL server (${dbConfig.host || 'via URL'}).`);
 
-    const sqlFilePath = path.resolve(__dirname, '../../database/database.sql');
+    const sqlFilePath = fs.existsSync(path.resolve(__dirname, '../../database/crib_society_db.sql'))
+      ? path.resolve(__dirname, '../../database/crib_society_db.sql')
+      : path.resolve(__dirname, '../../database/database.sql');
+
     if (!fs.existsSync(sqlFilePath)) {
       throw new Error(`Migration SQL file not found at: ${sqlFilePath}`);
     }
@@ -54,7 +57,7 @@ async function runMigration() {
       sqlContent = sqlContent.replace(/`crib_society_db`/g, `\`${targetDb}\``);
     }
 
-    console.log('📄 Executing database/database.sql...');
+    console.log(`📄 Executing ${path.basename(sqlFilePath)}...`);
     await connection.query(sqlContent);
     console.log('🎉 Database migration & seed completed successfully!');
     console.log(`Database "${targetDb}" is fully populated and ready for production.`);
