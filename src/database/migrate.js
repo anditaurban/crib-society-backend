@@ -29,6 +29,7 @@ async function runMigration() {
       password: process.env.DB_PASSWORD !== undefined
         ? process.env.DB_PASSWORD
         : (process.env.MYSQLPASSWORD || ''),
+      database: process.env.DB_NAME || process.env.MYSQLDATABASE || undefined,
       multipleStatements: true,
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined
     };
@@ -39,8 +40,14 @@ async function runMigration() {
   let connection;
   try {
     connection = await mysql.createConnection(dbConfig);
-    console.log(`✅ Connected to MySQL server (${dbConfig.host || 'via URL'}).`);
+    console.log(`✅ Connected to MySQL server.`);
 
+    // 1. Ensure target database exists and is selected
+    console.log(`📦 Ensuring database "${targetDb}" exists and is active...`);
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${targetDb}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    await connection.query(`USE \`${targetDb}\`;`);
+
+    // 2. Locate SQL file
     const sqlFilePath = fs.existsSync(path.resolve(__dirname, '../../database/crib_society_db.sql'))
       ? path.resolve(__dirname, '../../database/crib_society_db.sql')
       : path.resolve(__dirname, '../../database/database.sql');
@@ -51,14 +58,27 @@ async function runMigration() {
 
     let sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
 
-    // Adapt database name dynamically if Railway uses a different database (e.g. 'railway')
-    if (targetDb !== 'crib_society_db') {
-      console.log(`ℹ️ Adapting database name from "crib_society_db" to "${targetDb}"...`);
-      sqlContent = sqlContent.replace(/`crib_society_db`/g, `\`${targetDb}\``);
-    }
+    // 3. Prepare clean slate drop statements to prevent "Table already exists" on re-runs
+    const dropHeader = `
+      SET FOREIGN_KEY_CHECKS = 0;
+      DROP TABLE IF EXISTS \`order_status_logs\`;
+      DROP TABLE IF EXISTS \`payments\`;
+      DROP TABLE IF EXISTS \`order_items\`;
+      DROP TABLE IF EXISTS \`orders\`;
+      DROP TABLE IF EXISTS \`products\`;
+      DROP TABLE IF EXISTS \`categories\`;
+      DROP TABLE IF EXISTS \`users\`;
+      DROP TABLE IF EXISTS \`store_settings\`;
+    `;
+
+    const fullSql = `
+      ${dropHeader}
+      ${sqlContent}
+      SET FOREIGN_KEY_CHECKS = 1;
+    `;
 
     console.log(`📄 Executing ${path.basename(sqlFilePath)}...`);
-    await connection.query(sqlContent);
+    await connection.query(fullSql);
     console.log('🎉 Database migration & seed completed successfully!');
     console.log(`Database "${targetDb}" is fully populated and ready for production.`);
   } catch (error) {
